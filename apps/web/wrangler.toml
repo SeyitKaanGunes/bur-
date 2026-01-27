@@ -1,0 +1,18 @@
+# Cloudflare Workers / Pages config for Burcum
+name = "burcum-web"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "burcum-db"
+database_id = "619e0265-3bdc-4fc8-9410-e85241abf349"
+
+# Environment variables (production'da Cloudflare Dashboard'dan ayarlanacak)
+[vars]
+NEXT_PUBLIC_APP_URL = "https://burcum.site"
+
+# Development için local D1
+# wrangler d1 create burcum-db
+# wrangler d1 execute burcum-db --local --file=./schema.sql

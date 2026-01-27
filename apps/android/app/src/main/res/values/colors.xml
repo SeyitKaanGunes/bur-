@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="cosmic_background">#0F0520</color>
+    <color name="cosmic_surface">#1A0A30</color>
+    <color name="purple_60">#8B5CF6</color>
+    <color name="purple_40">#6366F1</color>
+    <color name="pink_40">#EC4899</color>
+</resources>

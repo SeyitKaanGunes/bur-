@@ -1,0 +1,36 @@
+{
+  "name": "@burcum/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@burcum/shared": "workspace:*",
+    "@burcum/ui": "workspace:*",
+    "@burcum/api-client": "workspace:*",
+    "@burcum/astrology": "workspace:*",
+    "@tanstack/react-query": "^5.64.0",
+    "drizzle-orm": "^0.39.0",
+    "groq-sdk": "^0.8.0",
+    "next": "14.2.21",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "resend": "^4.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "@types/node": "^20.17.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.0"
+  }
+}

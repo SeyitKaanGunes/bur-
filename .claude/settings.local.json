@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-turbo@latest . --example basic --package-manager pnpm)",
+      "Bash(dir:*)",
+      "Bash(npm init:*)",
+      "Bash(pnpm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 30 pnpm dev:*)",
+      "Bash(timeout 20 pnpm dev:*)",
+      "Bash(pnpm type-check:*)",
+      "Bash(pnpm build:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(pnpm dev)",
+      "Bash(npx wrangler d1 execute:*)",
+      "Bash(npx vercel --yes)",
+      "Bash(npx vercel:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
