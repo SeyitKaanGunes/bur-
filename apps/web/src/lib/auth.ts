@@ -1,18 +1,31 @@
 import { cookies } from 'next/headers';
-import { eq } from 'drizzle-orm';
 import { hashPassword, verifyPassword, generateToken } from '@burcum/shared';
-import { drizzle } from 'drizzle-orm/d1';
-import * as schema from '@burcum/shared/db';
 
 const SESSION_COOKIE_NAME = 'burcum_session';
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60; // 7 gün
 
 // Type for user without password
-export type SafeUser = Omit<typeof schema.users.$inferSelect, 'passwordHash'>;
+export type SafeUser = {
+  id: string;
+  email: string;
+  name: string;
+  birthDate: string;
+  birthTime?: string | null;
+  birthCity?: string | null;
+  zodiacSign: string;
+  emailVerifiedAt?: Date | null;
+  subscriptionTier: 'free' | 'premium' | 'vip';
+  dailyReadingsCount: number;
+  lastReadingDate?: string | null;
+  createdAt: Date;
+};
 
-// Get database from Cloudflare binding
-function getDb(db: D1Database) {
-  return drizzle(db, { schema });
+// Get database from Cloudflare binding (dynamic import to avoid errors on Vercel)
+async function getDbAndSchema(d1: D1Database) {
+  const { drizzle } = await import('drizzle-orm/d1');
+  const { eq } = await import('drizzle-orm');
+  const schema = await import('@burcum/shared/db');
+  return { db: drizzle(d1, { schema }), schema, eq };
 }
 
 // In-memory fallback for development (when D1 is not available)
@@ -61,7 +74,7 @@ export async function createUser(data: {
 
   if (d1) {
     // Production: Use D1
-    const db = getDb(d1);
+    const { db, schema, eq } = await getDbAndSchema(d1);
 
     // Email kontrolü
     const existing = await db
@@ -101,7 +114,7 @@ export async function createUser(data: {
 
     return { user, verificationToken };
   } else {
-    // Development: Use in-memory
+    // Development/Vercel: Use in-memory
     if (inMemoryUsers.has(data.email.toLowerCase())) {
       throw new Error('Bu email adresi zaten kayıtlı');
     }
@@ -139,7 +152,7 @@ export async function authenticateUser(email: string, password: string) {
   const d1 = getD1();
 
   if (d1) {
-    const db = getDb(d1);
+    const { db, schema, eq } = await getDbAndSchema(d1);
     const user = await db
       .select()
       .from(schema.users)
@@ -178,7 +191,7 @@ export async function createSession(userId: string) {
   const d1 = getD1();
 
   if (d1) {
-    const db = getDb(d1);
+    const { db, schema } = await getDbAndSchema(d1);
     await db.insert(schema.sessions).values({
       id: sessionId,
       userId,
@@ -217,7 +230,7 @@ export async function getSession() {
   const d1 = getD1();
 
   if (d1) {
-    const db = getDb(d1);
+    const { db, schema, eq } = await getDbAndSchema(d1);
     const session = await db
       .select()
       .from(schema.sessions)
@@ -249,7 +262,7 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
   const d1 = getD1();
 
   if (d1) {
-    const db = getDb(d1);
+    const { db, schema, eq } = await getDbAndSchema(d1);
     const user = await db
       .select()
       .from(schema.users)
@@ -278,7 +291,7 @@ export async function deleteSession() {
   if (sessionId) {
     const d1 = getD1();
     if (d1) {
-      const db = getDb(d1);
+      const { db, schema, eq } = await getDbAndSchema(d1);
       await db.delete(schema.sessions).where(eq(schema.sessions.id, sessionId));
     } else {
       inMemorySessions.delete(sessionId);
@@ -292,7 +305,7 @@ export async function verifyEmail(token: string) {
   const d1 = getD1();
 
   if (d1) {
-    const db = getDb(d1);
+    const { db, schema, eq } = await getDbAndSchema(d1);
     const tokenData = await db
       .select()
       .from(schema.emailVerificationTokens)
@@ -352,7 +365,7 @@ export async function getUserByEmail(email: string) {
   const d1 = getD1();
 
   if (d1) {
-    const db = getDb(d1);
+    const { db, schema, eq } = await getDbAndSchema(d1);
     return db
       .select()
       .from(schema.users)
@@ -368,7 +381,7 @@ export async function updateUserReadingCount(userId: string) {
   const d1 = getD1();
 
   if (d1) {
-    const db = getDb(d1);
+    const { db, schema, eq } = await getDbAndSchema(d1);
     const user = await db
       .select()
       .from(schema.users)
