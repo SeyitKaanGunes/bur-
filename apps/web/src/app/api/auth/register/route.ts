@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { registerSchema, getZodiacSign, SECURITY_HEADERS } from '@burcum/shared';
 import { createUser, createSession } from '@/lib/auth';
+import { sendVerificationEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,10 +36,13 @@ export async function POST(request: NextRequest) {
     // Session oluştur
     await createSession(user.id);
 
-    // Production'da email gönder
+    // Doğrulama emaili gönder
     if (process.env.RESEND_API_KEY) {
-      // Email gönderme işlemi auth.ts veya email.ts'de yapılıyor
-      // Token güvenlik için loglanmaz
+      try {
+        await sendVerificationEmail(email, verificationToken, name);
+      } catch (e) {
+        console.error('Verification email failed:', e);
+      }
     }
 
     // Hassas bilgileri çıkar
