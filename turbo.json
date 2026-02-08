@@ -1,6 +1,17 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env*"],
+  "globalPassThroughEnv": [
+    "GROQ_API_KEY",
+    "AUTH_SECRET",
+    "NEXTAUTH_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "RESEND_API_KEY",
+    "EMAIL_FROM",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "CLOUDFLARE_D1_DATABASE_ID",
+    "CLOUDFLARE_API_TOKEN"
+  ],
   "ui": "tui",
   "tasks": {
     "build": {
