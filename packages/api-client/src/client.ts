@@ -12,7 +12,9 @@ export class ApiClient {
   }
 
   private buildUrl(endpoint: string, params?: Record<string, string | number | boolean>): string {
-    const url = new URL(endpoint, this.baseUrl.startsWith('http') ? this.baseUrl : `${typeof window !== 'undefined' ? window.location.origin : ''}${this.baseUrl}`);
+    const origin = this.baseUrl.startsWith('http') ? '' : (typeof window !== 'undefined' ? window.location.origin : '');
+    const fullPath = `${origin}${this.baseUrl}${endpoint}`;
+    const url = new URL(fullPath);
 
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
