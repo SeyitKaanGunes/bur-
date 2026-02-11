@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ZODIAC_SIGNS, type ZodiacSign, SECURITY_HEADERS, getWeekStart, formatDateShort } from '@burcum/shared';
+import { ZODIAC_SIGNS, type ZodiacSign, SECURITY_HEADERS, getWeekStart, formatDateShort, resolveZodiacSign } from '@burcum/shared';
 import { generateWeeklyHoroscope } from '@/lib/ai';
 
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
@@ -40,8 +40,9 @@ export async function GET(
       );
     }
 
-    const sign = params.sign.toLowerCase() as ZodiacSign;
-    if (!ZODIAC_SIGNS.includes(sign)) {
+    // Burç doğrulama (Türkçe ve İngilizce isim desteği)
+    const sign = resolveZodiacSign(params.sign);
+    if (!sign) {
       return NextResponse.json(
         { success: false, error: 'Geçersiz burç' },
         { status: 400, headers: SECURITY_HEADERS }
@@ -91,11 +92,16 @@ export async function GET(
         },
       }
     );
-  } catch (error) {
-    console.error('Weekly horoscope error:', error);
+  } catch (error: any) {
+    const errorMessage = error?.message || 'Bilinmeyen hata';
+    console.error('Weekly horoscope error:', errorMessage);
+
     return NextResponse.json(
-      { success: false, error: 'Haftalık yorum oluşturulurken bir hata oluştu' },
-      { status: 500, headers: SECURITY_HEADERS }
+      {
+        success: false,
+        error: 'Haftalık yorum oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.',
+      },
+      { status: 503, headers: { ...SECURITY_HEADERS, 'Retry-After': '30' } }
     );
   }
 }

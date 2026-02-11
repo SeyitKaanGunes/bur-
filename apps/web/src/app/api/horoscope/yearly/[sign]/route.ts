@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ZODIAC_SIGNS, type ZodiacSign, SECURITY_HEADERS } from '@burcum/shared';
+import { ZODIAC_SIGNS, type ZodiacSign, SECURITY_HEADERS, resolveZodiacSign } from '@burcum/shared';
 import { getCurrentUser } from '@/lib/auth';
 import { generateYearlyHoroscope } from '@/lib/ai';
 
@@ -32,8 +32,9 @@ export async function GET(
       );
     }
 
-    const sign = params.sign.toLowerCase() as ZodiacSign;
-    if (!ZODIAC_SIGNS.includes(sign)) {
+    // Burç doğrulama (Türkçe ve İngilizce isim desteği)
+    const sign = resolveZodiacSign(params.sign);
+    if (!sign) {
       return NextResponse.json(
         { success: false, error: 'Geçersiz burç' },
         { status: 400, headers: SECURITY_HEADERS }
@@ -72,11 +73,16 @@ export async function GET(
       { success: true, data: responseData, cached: false },
       { headers: SECURITY_HEADERS }
     );
-  } catch (error) {
-    console.error('Yearly horoscope error:', error);
+  } catch (error: any) {
+    const errorMessage = error?.message || 'Bilinmeyen hata';
+    console.error('Yearly horoscope error:', errorMessage);
+
     return NextResponse.json(
-      { success: false, error: 'Yıllık yorum oluşturulurken bir hata oluştu' },
-      { status: 500, headers: SECURITY_HEADERS }
+      {
+        success: false,
+        error: 'Yıllık yorum oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.',
+      },
+      { status: 503, headers: { ...SECURITY_HEADERS, 'Retry-After': '30' } }
     );
   }
 }

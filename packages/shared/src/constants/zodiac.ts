@@ -215,3 +215,35 @@ export function getZodiacSign(birthDate: Date): ZodiacSign {
 export function getZodiacSignTurkish(sign: ZodiacSign): string {
   return ZODIAC_DATA[sign].turkishName;
 }
+
+// Türkçe burç ismi → İngilizce key mapping
+const TURKISH_TO_ENGLISH: Record<string, ZodiacSign> = {
+  'koç': 'aries', 'koc': 'aries',
+  'boğa': 'taurus', 'boga': 'taurus',
+  'ikizler': 'gemini',
+  'yengeç': 'cancer', 'yengec': 'cancer',
+  'aslan': 'leo',
+  'başak': 'virgo', 'basak': 'virgo',
+  'terazi': 'libra',
+  'akrep': 'scorpio',
+  'yay': 'sagittarius',
+  'oğlak': 'capricorn', 'oglak': 'capricorn',
+  'kova': 'aquarius',
+  'balık': 'pisces', 'balik': 'pisces',
+};
+
+/**
+ * Resolve a zodiac sign from either English key or Turkish name.
+ * Returns the English ZodiacSign key, or null if not found.
+ */
+export function resolveZodiacSign(input: string): ZodiacSign | null {
+  const lower = input.toLowerCase().trim();
+
+  // First check if it's already a valid English key
+  if (ZODIAC_SIGNS.includes(lower as ZodiacSign)) {
+    return lower as ZodiacSign;
+  }
+
+  // Try Turkish → English mapping
+  return TURKISH_TO_ENGLISH[lower] || null;
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ZODIAC_SIGNS, ZODIAC_DATA, type ZodiacSign, SECURITY_HEADERS } from '@burcum/shared';
+import { ZODIAC_SIGNS, ZODIAC_DATA, type ZodiacSign, SECURITY_HEADERS, resolveZodiacSign } from '@burcum/shared';
 import { calculateCompatibility } from '@burcum/astrology';
 
 export async function POST(request: NextRequest) {
@@ -15,10 +15,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const s1 = sign1.toLowerCase() as ZodiacSign;
-    const s2 = sign2.toLowerCase() as ZodiacSign;
+    const s1 = resolveZodiacSign(sign1);
+    const s2 = resolveZodiacSign(sign2);
 
-    if (!ZODIAC_SIGNS.includes(s1) || !ZODIAC_SIGNS.includes(s2)) {
+    if (!s1 || !s2) {
       return NextResponse.json(
         { success: false, error: 'Geçersiz burç' },
         { status: 400, headers: SECURITY_HEADERS }

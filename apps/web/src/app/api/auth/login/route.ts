@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loginSchema, SECURITY_HEADERS } from '@burcum/shared';
-import { authenticateUser, createSession } from '@/lib/auth';
+import { authenticateUser, createSession, AuthError } from '@/lib/auth';
 
 // Rate limiting for login attempts
 const loginAttempts = new Map<string, { count: number; blockedUntil?: Date }>();
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
 
     // Validation
     const result = loginSchema.safeParse(body);
@@ -87,8 +87,22 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Login error:', error);
+
+    // Kullanıcı bulunamadı → kayıt olması gerektiğini belirt
+    if (error instanceof AuthError && error.code === 'USER_NOT_FOUND') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Bu email ile kayıtlı hesap bulunamadı. Önce kayıt olmanız gerekiyor.',
+          code: 'USER_NOT_FOUND',
+        },
+        { status: 401, headers: SECURITY_HEADERS }
+      );
+    }
+
+    // Yanlış şifre
     return NextResponse.json(
-      { success: false, error: 'Email veya şifre hatalı' },
+      { success: false, error: 'Email veya şifre hatalı', code: 'WRONG_PASSWORD' },
       { status: 401, headers: SECURITY_HEADERS }
     );
   }

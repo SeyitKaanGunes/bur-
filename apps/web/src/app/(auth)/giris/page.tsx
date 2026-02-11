@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useLogin } from '@burcum/api-client';
+import { useLogin, ApiError } from '@burcum/api-client';
 import { Button, Card, Input } from '@burcum/ui';
 
 export default function LoginPage() {
@@ -16,11 +16,13 @@ export default function LoginPage() {
   });
 
   const [error, setError] = useState('');
+  const [showRegisterHint, setShowRegisterHint] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
+    setShowRegisterHint(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,9 +39,19 @@ export default function LoginPage() {
         password: formData.password,
       });
 
+      // Cookie'nin set edilmesi için kısa bekleme
+      await new Promise((resolve) => setTimeout(resolve, 100));
       router.push('/');
+      router.refresh(); // Server component'leri da yeniden yükle
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Giriş yapılırken bir hata oluştu');
+      // Kullanıcı bulunamadı → kayıt olması gerektiğini belirt
+      if (err instanceof ApiError && err.data && (err.data as any).code === 'USER_NOT_FOUND') {
+        setShowRegisterHint(true);
+        setError('Bu email ile kayıtlı hesap bulunamadı.');
+      } else {
+        setShowRegisterHint(false);
+        setError(err instanceof Error ? err.message : 'Giriş yapılırken bir hata oluştu');
+      }
     }
   };
 
@@ -52,8 +64,16 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-400 text-sm">
-            {error}
+          <div className={`p-3 rounded-xl text-sm ${showRegisterHint ? 'bg-amber-500/20 border border-amber-500/50 text-amber-400' : 'bg-red-500/20 border border-red-500/50 text-red-400'}`}>
+            <p>{error}</p>
+            {showRegisterHint && (
+              <Link
+                href="/kayit"
+                className="mt-2 inline-block font-semibold text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+              >
+                Hemen Kayıt Ol &rarr;
+              </Link>
+            )}
           </div>
         )}
 

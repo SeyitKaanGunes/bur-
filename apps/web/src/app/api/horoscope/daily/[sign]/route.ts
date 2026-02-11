@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ZODIAC_SIGNS, type ZodiacSign, SECURITY_HEADERS, getToday } from '@burcum/shared';
+import { ZODIAC_SIGNS, type ZodiacSign, SECURITY_HEADERS, getToday, resolveZodiacSign } from '@burcum/shared';
 import { generateDailyHoroscope } from '@/lib/ai';
 
 // Rate limiting için basit in-memory store (production'da KV kullan)
@@ -76,9 +76,9 @@ export async function GET(
       );
     }
 
-    // Burç doğrulama
-    const sign = params.sign.toLowerCase() as ZodiacSign;
-    if (!ZODIAC_SIGNS.includes(sign)) {
+    // Burç doğrulama (Türkçe ve İngilizce isim desteği)
+    const sign = resolveZodiacSign(params.sign);
+    if (!sign) {
       return NextResponse.json(
         { success: false, error: 'Geçersiz burç' },
         { status: 400, headers: SECURITY_HEADERS }
@@ -135,11 +135,20 @@ export async function GET(
         },
       }
     );
-  } catch (error) {
-    console.error('Daily horoscope error:', error);
+  } catch (error: any) {
+    const errorMessage = error?.message || 'Bilinmeyen hata';
+    console.error('Daily horoscope error:', errorMessage);
+
+    // Return user-friendly message but log the real error
+    const isAIError = errorMessage.includes('GROQ') || errorMessage.includes('API') || errorMessage.includes('model');
     return NextResponse.json(
-      { success: false, error: 'Yorum oluşturulurken bir hata oluştu' },
-      { status: 500, headers: SECURITY_HEADERS }
+      {
+        success: false,
+        error: isAIError
+          ? 'Yorum servisi şu an meşgul. Lütfen birkaç dakika sonra tekrar deneyin.'
+          : 'Yorum oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.',
+      },
+      { status: 503, headers: { ...SECURITY_HEADERS, 'Retry-After': '30' } }
     );
   }
 }
