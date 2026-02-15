@@ -16,7 +16,10 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (data: LoginInput) => apiClient.post<User>('/auth/login', data),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Login response zaten user verisini döndürüyor, cache'e direkt yaz
+      queryClient.setQueryData(['auth', 'me'], data);
+      // Ayrıca invalidate et ki bir sonraki erişimde taze veri gelsin
       queryClient.invalidateQueries({ queryKey: ['auth'] });
     },
   });
@@ -27,7 +30,9 @@ export function useRegister() {
 
   return useMutation({
     mutationFn: (data: RegisterInput) => apiClient.post<User>('/auth/register', data),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Register response zaten user verisini döndürüyor, cache'e direkt yaz
+      queryClient.setQueryData(['auth', 'me'], data);
       queryClient.invalidateQueries({ queryKey: ['auth'] });
     },
   });
@@ -38,6 +43,17 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: () => apiClient.post('/auth/logout'),
+    onSuccess: () => {
+      queryClient.clear();
+    },
+  });
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.post('/auth/delete-account'),
     onSuccess: () => {
       queryClient.clear();
     },
@@ -68,6 +84,7 @@ export function useAuth() {
   const login = useLogin();
   const register = useRegister();
   const logout = useLogout();
+  const deleteAccount = useDeleteAccount();
 
   return {
     user: user.data?.data,
@@ -76,5 +93,6 @@ export function useAuth() {
     login,
     register,
     logout,
+    deleteAccount,
   };
 }

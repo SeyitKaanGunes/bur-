@@ -531,6 +531,60 @@ export async function deleteSession() {
   cookieStore.delete(SESSION_COOKIE_NAME);
 }
 
+// ===== DELETE USER ACCOUNT =====
+export async function deleteUserAccount(userId: string) {
+  const backend = getStorageBackend();
+
+  if (backend === 'd1-binding') {
+    const d1 = getD1()!;
+    const { db, schema, eq } = await getDbAndSchema(d1);
+
+    // compatibility_checks uses ON DELETE SET NULL; we keep compatibility history anonymized.
+    await db
+      .update(schema.compatibilityChecks)
+      .set({ userId: null })
+      .where(eq(schema.compatibilityChecks.userId, userId));
+
+    // sessions, tokens, personal_readings and subscriptions are cascaded from users.
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
+    return;
+  }
+
+  if (backend === 'd1-http') {
+    // Keep compatibility history but unlink user identity.
+    await d1Query('UPDATE compatibility_checks SET user_id = NULL WHERE user_id = ?', [userId]);
+
+    // Explicit cleanup for compatibility with environments where cascade may not be enabled.
+    await d1Query('DELETE FROM subscriptions WHERE user_id = ?', [userId]);
+    await d1Query('DELETE FROM personal_readings WHERE user_id = ?', [userId]);
+    await d1Query('DELETE FROM password_reset_tokens WHERE user_id = ?', [userId]);
+    await d1Query('DELETE FROM email_verification_tokens WHERE user_id = ?', [userId]);
+    await d1Query('DELETE FROM sessions WHERE user_id = ?', [userId]);
+    await d1Query('DELETE FROM users WHERE id = ?', [userId]);
+    return;
+  }
+
+  // In-memory fallback
+  for (const [email, user] of inMemoryUsers.entries()) {
+    if (user.id === userId) {
+      inMemoryUsers.delete(email);
+      break;
+    }
+  }
+
+  for (const [sessionId, session] of inMemorySessions.entries()) {
+    if (session.userId === userId) {
+      inMemorySessions.delete(sessionId);
+    }
+  }
+
+  for (const [token, tokenData] of inMemoryVerificationTokens.entries()) {
+    if (tokenData.userId === userId) {
+      inMemoryVerificationTokens.delete(token);
+    }
+  }
+}
+
 // ===== VERIFY EMAIL =====
 export async function verifyEmail(token: string) {
   const backend = getStorageBackend();

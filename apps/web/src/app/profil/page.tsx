@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const { user, isLoading, isAuthenticated, logout, deleteAccount } = useAuth();
 
   if (isLoading) {
     return (
@@ -47,6 +47,22 @@ export default function ProfilePage() {
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'Hesabiniz kalici olarak silinecek. Bu islem geri alinamaz. Devam etmek istiyor musunuz?'
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteAccount.mutateAsync();
+      router.push('/');
+      router.refresh();
+    } catch (error) {
+      console.error('Delete account error:', error);
+      alert(error instanceof Error ? error.message : 'Hesap silinirken bir hata olustu');
     }
   };
 
@@ -167,6 +183,14 @@ export default function ProfilePage() {
             <hr className="border-white/10" />
             <Button variant="danger" className="w-full" onClick={handleLogout}>
               Çıkış Yap
+            </Button>
+            <Button
+              variant="danger"
+              className="w-full"
+              onClick={handleDeleteAccount}
+              disabled={deleteAccount.isPending}
+            >
+              {deleteAccount.isPending ? 'Hesap Siliniyor...' : 'Hesabı Kalıcı Olarak Sil'}
             </Button>
           </div>
         </Card>

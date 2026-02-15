@@ -4,11 +4,20 @@ import SwiftUI
 struct User: Codable, Identifiable {
     let id: String
     let email: String
-    let name: String?
-    let zodiacSign: String?
-    let birthDate: String?
+    let name: String
+    let birthDate: String
+    let birthTime: String?
+    let birthCity: String?
+    let zodiacSign: String
+    let emailVerifiedAt: String?
     let subscriptionTier: SubscriptionTier
-    let emailVerified: Bool
+    let dailyReadingsCount: Int?
+    let lastReadingDate: String?
+    let createdAt: String?
+
+    var emailVerified: Bool {
+        emailVerifiedAt != nil
+    }
 }
 
 enum SubscriptionTier: String, Codable {
@@ -28,10 +37,12 @@ class AuthManager: ObservableObject {
     private let keychain = KeychainManager.shared
 
     init() {
-        // Keychain'den kullanıcı yükle
         if let savedUser = keychain.getUser() {
             self.user = savedUser
             self.isAuthenticated = true
+            Task {
+                await refreshUser()
+            }
         }
     }
 
@@ -48,13 +59,19 @@ class AuthManager: ObservableObject {
         error = nil
 
         do {
-            let response = try await performLogin(email: email, password: password)
-            self.user = response.user
+            let response = try await apiClient.login(email: email, password: password)
+            guard response.success, let user = response.data else {
+                self.error = response.error ?? "Giris basarisiz"
+                isLoading = false
+                return
+            }
+            self.user = user
             self.isAuthenticated = true
-            _ = keychain.saveToken(response.token)
-            _ = keychain.saveUser(response.user)
+            _ = keychain.saveUser(user)
+        } catch let apiError as APIError {
+            self.error = apiError.errorDescription
         } catch {
-            self.error = error.localizedDescription
+            self.error = "Baglanti hatasi. Lutfen tekrar deneyin."
         }
 
         isLoading = false
@@ -64,60 +81,96 @@ class AuthManager: ObservableObject {
         isLoading = true
         error = nil
 
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        let request = RegisterRequest(
+            email: email,
+            password: password,
+            name: name ?? "",
+            birthDate: birthDate.map { formatter.string(from: $0) } ?? "",
+            birthTime: nil,
+            birthCity: nil
+        )
+
         do {
-            let response = try await performRegister(
-                email: email,
-                password: password,
-                name: name,
-                birthDate: birthDate
-            )
-            self.user = response.user
+            let response = try await apiClient.register(request: request)
+            guard response.success, let user = response.data else {
+                self.error = response.error ?? "Kayit basarisiz"
+                isLoading = false
+                return
+            }
+            self.user = user
             self.isAuthenticated = true
-            _ = keychain.saveToken(response.token)
-            _ = keychain.saveUser(response.user)
+            _ = keychain.saveUser(user)
+        } catch let apiError as APIError {
+            self.error = apiError.errorDescription
         } catch {
-            self.error = error.localizedDescription
+            self.error = "Baglanti hatasi. Lutfen tekrar deneyin."
         }
 
         isLoading = false
     }
 
     func logout() {
-        user = nil
-        isAuthenticated = false
-        keychain.clearAll()
+        Task {
+            do {
+                let _: APIResponse<LogoutResponse> = try await apiClient.logout()
+            } catch {
+                // Silent fail
+            }
+        }
+        clearLocalSession()
+    }
+
+    func deleteAccount() async -> Bool {
+        isLoading = true
+        error = nil
+
+        do {
+            let response = try await apiClient.deleteAccount()
+            guard response.success else {
+                self.error = response.error ?? "Hesap silme basarisiz"
+                isLoading = false
+                return false
+            }
+
+            clearLocalSession()
+            isLoading = false
+            return true
+        } catch let apiError as APIError {
+            self.error = apiError.errorDescription
+        } catch {
+            self.error = "Hesap silinirken bir hata olustu. Lutfen tekrar deneyin."
+        }
+
+        isLoading = false
+        return false
     }
 
     func refreshUser() async {
         do {
-            let response: APIResponse<User> = try await fetchCurrentUser()
-            if let updatedUser = response.data {
+            let response = try await apiClient.getCurrentUser()
+            if response.success, let updatedUser = response.data {
                 self.user = updatedUser
+                self.isAuthenticated = true
                 _ = keychain.saveUser(updatedUser)
+            } else if !response.success {
+                clearLocalSession()
+            }
+        } catch let apiError as APIError {
+            if case .unauthorized = apiError {
+                clearLocalSession()
             }
         } catch {
-            // Silent fail - kullanıcı hala cached data ile devam eder
+            // Network error: keep cached user
         }
     }
 
-    // MARK: - Private API Calls
-
-    private struct AuthResponse: Codable {
-        let user: User
-        let token: String
-    }
-
-    private func performLogin(email: String, password: String) async throws -> AuthResponse {
-        // API call implementation
-        // Bu gerçek implementasyonda APIClient üzerinden yapılacak
-        throw APIError.serverError(500) // Placeholder
-    }
-
-    private func performRegister(email: String, password: String, name: String?, birthDate: Date?) async throws -> AuthResponse {
-        throw APIError.serverError(500) // Placeholder
-    }
-
-    private func fetchCurrentUser<T: Codable>() async throws -> T {
-        throw APIError.serverError(500) // Placeholder
+    private func clearLocalSession() {
+        apiClient.clearCookies()
+        user = nil
+        isAuthenticated = false
+        keychain.clearAll()
     }
 }

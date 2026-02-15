@@ -3,22 +3,15 @@ import SwiftUI
 struct ProfileView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var subscriptionManager: SubscriptionManager
-    @State private var showLogoutAlert = false
+    @State private var activeAlert: ProfileAlert?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Profile Header
                     profileHeader
-
-                    // Subscription Status
                     subscriptionCard
-
-                    // Settings Menu
                     settingsMenu
-
-                    // Logout Button
                     logoutButton
                 }
                 .padding()
@@ -35,20 +28,39 @@ struct ProfileView: View {
                 .ignoresSafeArea()
             )
             .navigationTitle("Profil")
-            .alert("Çıkış Yap", isPresented: $showLogoutAlert) {
-                Button("İptal", role: .cancel) {}
-                Button("Çıkış Yap", role: .destructive) {
-                    authManager.logout()
+            .alert(item: $activeAlert) { alert in
+                switch alert {
+                case .logoutConfirm:
+                    return Alert(
+                        title: Text("Cikis Yap"),
+                        message: Text("Hesabindan cikis yapmak istedigine emin misin?"),
+                        primaryButton: .destructive(Text("Cikis Yap")) {
+                            authManager.logout()
+                        },
+                        secondaryButton: .cancel(Text("Iptal"))
+                    )
+                case .deleteConfirm:
+                    return Alert(
+                        title: Text("Hesabi Kalici Olarak Sil"),
+                        message: Text("Bu islem geri alinamaz. Tum verilerin ve uyeliginle iliskili bilgiler kalici olarak silinir."),
+                        primaryButton: .destructive(Text("Hesabi Sil")) {
+                            deleteAccount()
+                        },
+                        secondaryButton: .cancel(Text("Iptal"))
+                    )
+                case .deleteResult(let message):
+                    return Alert(
+                        title: Text("Hesap Silme"),
+                        message: Text(message),
+                        dismissButton: .default(Text("Tamam"))
+                    )
                 }
-            } message: {
-                Text("Hesabından çıkış yapmak istediğine emin misin?")
             }
         }
     }
 
     private var profileHeader: some View {
         VStack(spacing: 16) {
-            // Avatar
             ZStack {
                 Circle()
                     .fill(
@@ -71,25 +83,21 @@ struct ProfileView: View {
                 }
             }
 
-            // Name & Email
             VStack(spacing: 4) {
-                if let name = authManager.user?.name {
-                    Text(name)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                }
+                Text(authManager.user?.name ?? "")
+                    .font(.title2)
+                    .fontWeight(.bold)
 
                 Text(authManager.user?.email ?? "")
                     .font(.subheadline)
                     .foregroundColor(.gray)
             }
 
-            // Zodiac Info
             if let signStr = authManager.user?.zodiacSign,
                let sign = ZodiacSign(rawValue: signStr) {
                 HStack {
                     Text(sign.turkishName)
-                    Text("•")
+                    Text("\u{2022}")
                         .foregroundColor(.gray)
                     Text(sign.dateRange)
                 }
@@ -109,7 +117,7 @@ struct ProfileView: View {
         VStack(spacing: 16) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Üyelik Durumu")
+                    Text("Uyelik Durumu")
                         .font(.caption)
                         .foregroundColor(.gray)
 
@@ -127,7 +135,7 @@ struct ProfileView: View {
 
             if !authManager.isPremium {
                 NavigationLink(destination: PremiumView()) {
-                    Text("Premium'a Geç")
+                    Text("Premium'a Gec")
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -152,9 +160,9 @@ struct ProfileView: View {
 
     private var subscriptionLabel: String {
         switch authManager.user?.subscriptionTier {
-        case .vip: return "VIP Üye"
-        case .premium: return "Premium Üye"
-        default: return "Ücretsiz"
+        case .vip: return "VIP Uye"
+        case .premium: return "Premium Uye"
+        default: return "Ucretsiz"
         }
     }
 
@@ -176,38 +184,35 @@ struct ProfileView: View {
 
     private var settingsMenu: some View {
         VStack(spacing: 0) {
-            SettingsRow(icon: "bell.fill", title: "Bildirimler", color: .orange) {
-                // Push to notifications settings
+            SettingsRow(icon: "lock.fill", title: "Gizlilik Politikasi", color: .green) {
+                if let url = URL(string: "https://burcum.site/gizlilik") {
+                    UIApplication.shared.open(url)
+                }
             }
 
             Divider()
                 .background(Color.white.opacity(0.1))
 
-            SettingsRow(icon: "envelope.fill", title: "E-posta Tercihleri", color: .blue) {
-                // Push to email settings
+            SettingsRow(icon: "questionmark.circle.fill", title: "Yardim & Destek", color: .purple) {
+                if let url = URL(string: "mailto:destek@burcum.site") {
+                    UIApplication.shared.open(url)
+                }
             }
 
             Divider()
                 .background(Color.white.opacity(0.1))
 
-            SettingsRow(icon: "lock.fill", title: "Gizlilik", color: .green) {
-                // Push to privacy settings
-            }
-
-            Divider()
-                .background(Color.white.opacity(0.1))
-
-            SettingsRow(icon: "questionmark.circle.fill", title: "Yardım & Destek", color: .purple) {
-                // Push to help
-            }
-
-            Divider()
-                .background(Color.white.opacity(0.1))
-
-            SettingsRow(icon: "arrow.clockwise", title: "Satın Almaları Geri Yükle", color: .cyan) {
+            SettingsRow(icon: "arrow.clockwise", title: "Satin Almalari Geri Yukle", color: .cyan) {
                 Task {
                     await subscriptionManager.restorePurchases()
                 }
+            }
+
+            Divider()
+                .background(Color.white.opacity(0.1))
+
+            SettingsRow(icon: "trash.fill", title: "Hesabi Sil", color: .red) {
+                activeAlert = .deleteConfirm
             }
         }
         .background(
@@ -218,11 +223,11 @@ struct ProfileView: View {
 
     private var logoutButton: some View {
         Button {
-            showLogoutAlert = true
+            activeAlert = .logoutConfirm
         } label: {
             HStack {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
-                Text("Çıkış Yap")
+                Text("Cikis Yap")
             }
             .foregroundColor(.red)
             .frame(maxWidth: .infinity)
@@ -231,6 +236,34 @@ struct ProfileView: View {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.ultraThinMaterial)
             )
+        }
+    }
+
+    private func deleteAccount() {
+        Task {
+            let success = await authManager.deleteAccount()
+            if success {
+                activeAlert = .deleteResult("Hesabin kalici olarak silindi.")
+            } else {
+                activeAlert = .deleteResult(authManager.error ?? "Hesap silinirken bir hata olustu.")
+            }
+        }
+    }
+}
+
+private enum ProfileAlert: Identifiable {
+    case logoutConfirm
+    case deleteConfirm
+    case deleteResult(String)
+
+    var id: String {
+        switch self {
+        case .logoutConfirm:
+            return "logout-confirm"
+        case .deleteConfirm:
+            return "delete-confirm"
+        case .deleteResult(let message):
+            return "delete-result-\(message)"
         }
     }
 }
